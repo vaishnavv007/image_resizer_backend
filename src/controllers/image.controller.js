@@ -23,13 +23,27 @@ function normalizeFormat(format) {
   if (f === 'jpg' || f === 'jpeg') return 'jpeg';
   if (f === 'png') return 'png';
   if (f === 'webp') return 'webp';
+  if (f === 'avif') return 'avif';
+  if (f === 'heic') return 'heic';
+  if (f === 'heif') return 'heif';
+  if (f === 'tiff' || f === 'tif') return 'tiff';
+  if (f === 'gif') return 'gif';
   return 'jpeg';
 }
 
 function mimeTypeForFormat(format) {
-  if (format === 'png') return 'image/png';
-  if (format === 'webp') return 'image/webp';
-  return 'image/jpeg';
+  const formatLower = format ? format.toLowerCase() : 'jpeg';
+  switch (formatLower) {
+    case 'png': return 'image/png';
+    case 'webp': return 'image/webp';
+    case 'avif': return 'image/avif';
+    case 'heif':
+    case 'heic': return 'image/heif';
+    case 'tiff':
+    case 'tif': return 'image/tiff';
+    case 'gif': return 'image/gif';
+    default: return 'image/jpeg';
+  }
 }
 
 function getDefaultDpi({ preset, unit }) {
@@ -137,14 +151,42 @@ async function processSingleImage({ file, options }) {
   const crop = Boolean(options?.crop);
   const removeMetadata = Boolean(options?.removeMetadata);
   const background = String(options?.background || 'white').toLowerCase();
-  const format = normalizeFormat(options?.format);
+  const requestedFormat = String(options?.format || 'jpeg').toLowerCase();
+  const format = normalizeFormat(requestedFormat);
 
   const safeBackground = background === 'transparent' ? 'transparent' : 'white';
 
-  let pipeline = sharp(file.buffer, { failOn: 'none' }).rotate();
+  // Configure input options based on file type
+  const inputOptions = {
+    failOn: 'none',
+    limitInputPixels: false,
+    sequentialRead: true,
+    // Higher density for better SVG to raster conversion
+    density: Math.round(dpi) * 2
+  };
+
+  // Set format-specific input options
+  const fileExt = file.originalname.split('.').pop().toLowerCase();
+  if (['tif', 'tiff'].includes(fileExt)) {
+    inputOptions.tiff = {
+      squash: true,
+      xres: dpi,
+      yres: dpi,
+      bitdepth: 8 // Ensure 8-bit depth for better compatibility
+    };
+  }
+
+  let pipeline = sharp(file.buffer, inputOptions).rotate();
 
   if (!removeMetadata) {
-    pipeline = pipeline.withMetadata({ density: Math.round(dpi) });
+    pipeline = pipeline.withMetadata({ 
+      density: Math.round(dpi),
+      // Preserve more metadata for TIFF
+      tiff: {
+        xres: dpi,
+        yres: dpi
+      }
+    });
   }
 
   if (widthPx || heightPx) {
@@ -172,10 +214,49 @@ async function processSingleImage({ file, options }) {
     pipeline = pipeline.png({ compressionLevel: 9, quality });
   } else if (format === 'webp') {
     pipeline = pipeline.webp({ quality });
+  } else if (format === 'avif') {
+    pipeline = pipeline.avif({ quality });
+  } else if (format === 'heif' || format === 'heic') {
+    pipeline = pipeline.heif({ 
+      quality,
+      compression: 'av1',
+      lossless: false,
+      effort: 4
+    });
+  } else if (format === 'tiff') {
+    pipeline = pipeline.tiff({ 
+      quality: Math.min(100, Math.max(1, quality)),
+      compression: 'lzw',
+      predictor: 'horizontal',
+      xres: dpi,
+      yres: dpi,
+      bitdepth: 8, // Ensure 8-bit depth
+      tile: false,
+      pyramid: false,
+      squash: true
+    });
+  } else if (format === 'gif') {
+    // Convert GIF to PNG for static output
+    pipeline = pipeline.png({ compressionLevel: 9, quality });
   }
 
+  const outputFormat = format;
   const outputBuffer = await pipeline.toBuffer();
-  const outputName = `${safeBaseName(file.originalname)}_processed.${format === 'jpeg' ? 'jpg' : format}`;
+  
+  // Generate appropriate file extension
+  let fileExtension = outputFormat;
+  if (outputFormat === 'jpeg') {
+    // Distinguish between JPG and JPEG based on the user's selection
+    fileExtension = requestedFormat === 'jpeg' ? 'jpeg' : 'jpg';
+  } else if (outputFormat === 'tiff') {
+    fileExtension = 'tif';
+  } else if (outputFormat === 'heic') {
+    fileExtension = 'heic';
+  } else if (outputFormat === 'heif') {
+    fileExtension = 'heif';
+  }
+  
+  const outputName = `${safeBaseName(file.originalname)}_processed.${fileExtension}`;
 
   return { outputBuffer, outputName, format };
 }
