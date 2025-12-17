@@ -86,3 +86,5 @@ Inspect the `src/controllers` and `src/routes` directories in this backend for e
 - **Cannot connect from frontend** – Confirm `PORT` and `VITE_API_BASE_URL` match and there are no CORS errors.
 - **File upload errors** – Check upload size limits and storage configuration (Multer or equivalent).
 - **Image processing errors** – Verify the image library (e.g. Sharp) is installed correctly, and that the host OS has required native dependencies.
+
+deploy on render
