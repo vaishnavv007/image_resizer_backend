@@ -1,9 +1,18 @@
 const express = require('express');
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const authMiddleware = require('../middleware/auth.middleware');
 const { processImages } = require('../controllers/image.controller');
 
 const router = express.Router();
+
+// Security: image processing is CPU/memory intensive. A dedicated limiter reduces DoS risk even if a user is authenticated.
+const imageProcessLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,6 +29,6 @@ const upload = multer({
   },
 });
 
-router.post('/process', authMiddleware, upload.array('images', 20), processImages);
+router.post('/process', authMiddleware, imageProcessLimiter, upload.array('images', 20), processImages);
 
 module.exports = router;

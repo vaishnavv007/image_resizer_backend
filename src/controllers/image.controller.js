@@ -3,6 +3,10 @@ const archiver = require('archiver');
 const sharp = require('sharp');
 const { toPixels } = require('../utils/unitConverter');
 
+// Security: protect against decompression bombs (small compressed images that expand to huge pixel buffers).
+// Multer's file size limit alone is not sufficient, so we also cap decoded pixel count.
+const MAX_INPUT_PIXELS = 64 * 1000 * 1000;
+
 const PRESETS = {
   instagram_square: { width: 1080, height: 1080 },
   instagram_story: { width: 1080, height: 1920 },
@@ -116,7 +120,7 @@ function getOrientedOriginalDimensions(meta) {
 }
 
 async function processSingleImage({ file, options }) {
-  const input = sharp(file.buffer, { failOn: 'none' });
+  const input = sharp(file.buffer, { failOn: 'none', limitInputPixels: MAX_INPUT_PIXELS });
   const meta = await input.metadata();
   // Sharp reads width/height without applying EXIF orientation; we rotate() later,
   // so compute "original" dimensions as the oriented display size for % and aspect lock.
@@ -159,7 +163,8 @@ async function processSingleImage({ file, options }) {
   // Configure input options based on file type
   const inputOptions = {
     failOn: 'none',
-    limitInputPixels: false,
+    // Security: never disable Sharp's input pixel limit; it is a core mitigation for decompression-bomb attacks.
+    limitInputPixels: MAX_INPUT_PIXELS,
     sequentialRead: true,
     // Higher density for better SVG to raster conversion
     density: Math.round(dpi) * 2

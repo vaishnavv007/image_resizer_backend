@@ -15,7 +15,9 @@ async function authMiddleware(req, res, next) {
       return res.status(500).json({ message: 'Server misconfigured' });
     }
 
-    const payload = jwt.verify(token, secret);
+    // Security: explicitly restrict algorithms to prevent accepting tokens signed with unexpected/unsafe algorithms.
+    // This app signs tokens using the jsonwebtoken default (HS256), so we lock verification to HS256.
+    const payload = jwt.verify(token, secret, { algorithms: ['HS256'] });
     const userId = payload?.sub;
 
     if (!userId) {
