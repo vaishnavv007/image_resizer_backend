@@ -1,33 +1,34 @@
-# Use an official Node.js runtime as the base image
-FROM node:18-alpine
+# Use an official Node.js runtime (Debian-based)
+FROM node:18-slim
 
 # Install build tools needed for native modules like bcrypt
-RUN apk add --no-cache python3 make g++
-# Set the working directory in the container
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
+# Set the working directory in the container
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
-# Security: use lockfile-based installs for reproducible, auditable builds.
-# Security: omit devDependencies in production images to reduce attack surface.
+# Install production dependencies only
 RUN npm ci --omit=dev
 
 # Copy the rest of the application code
 COPY . .
 
-# Security: set production mode by default inside the container. This aligns runtime security flags
-# (e.g., secure cookies) with production expectations.
+# Set production mode
 ENV NODE_ENV=production
 
-# Security: run as a non-root user to reduce impact of a container escape or RCE.
+# Run as non-root user (already exists in node image)
 RUN chown -R node:node /usr/src/app
 USER node
 
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Command to run the application
+# Start the application
 CMD ["npm", "start"]
