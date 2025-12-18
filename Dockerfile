@@ -1,7 +1,10 @@
 # Use an official Node.js runtime as the base image
 FROM node:18-alpine
 
+# Install build tools needed for native modules like bcrypt
+RUN apk add --no-cache python3 make g++
 # Set the working directory in the container
+
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
