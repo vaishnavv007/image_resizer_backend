@@ -1,34 +1,23 @@
-# Use an official Node.js runtime (Debian-based)
-FROM node:18-slim
+# ---------- BUILD STAGE ----------
+FROM node:18-alpine AS build
 
-# Install build tools needed for native modules like bcrypt
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json
 COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 
-# Install production dependencies only
-RUN npm ci --omit=dev
-
-# Copy the rest of the application code
 COPY . .
 
-# Set production mode
+# ---------- RUNTIME STAGE ----------
+FROM node:18-alpine
+
+WORKDIR /usr/src/app
+
+COPY --from=build /usr/src/app /usr/src/app
+
 ENV NODE_ENV=production
 
-# Run as non-root user (already exists in node image)
-RUN chown -R node:node /usr/src/app
 USER node
 
-# Expose the port the app runs on
 EXPOSE 5000
-
-# Start the application
 CMD ["npm", "start"]

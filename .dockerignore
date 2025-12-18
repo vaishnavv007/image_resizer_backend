@@ -1,15 +1,18 @@
-# Node modules and build directories
+# Node modules and logs
 node_modules/
 npm-debug.log
+*.log
+logs/
 
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 
-# IDE and editor files
+# Uploads / temp
+uploads/
+tmp/
+
+# IDE/editor
 .vscode/
 .idea/
 *.suo
@@ -18,7 +21,7 @@ npm-debug.log
 *.sln
 *.sw?
 
-# OS generated files
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -26,3 +29,15 @@ npm-debug.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Tests & docs
+tests
+coverage
+README.md
+
+# Docker
+Dockerfile

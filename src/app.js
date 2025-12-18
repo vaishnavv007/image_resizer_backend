@@ -20,7 +20,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const configuredFrontendOrigin = String(process.env.FRONTEND_ORIGIN || '').trim();
 const allowedOrigins = (configuredFrontendOrigin
   ? configuredFrontendOrigin.split(',')
-  : (isProd ? [] : ['http://localhost:5173'])
+  : (isProd ? [] : ['https://image-resizer-frontend-three.vercel.app/'])
 )
   .map((o) => String(o).trim())
   .filter(Boolean);
